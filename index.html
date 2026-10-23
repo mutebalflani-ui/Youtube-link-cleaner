@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-tsCASFtXbzC9Fnfi4uzr6c12jXONPV7171KItOYQBHI='; style-src 'sha256-HP6SI1Ljybs/Z3U4cPwJuHI3klns722Ar6+JPhPEFoE='; base-uri 'none'; form-action 'none'">
+<title>YouTube Link Cleaner</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #eef2f5;
+    --surface: #ffffff;
+    --fg: #13202b;
+    --muted: #455563;
+    --line: #aebcc7;
+    --accent: #0a6b61;
+    --accent-fg: #ffffff;
+    --field: #ffffff;
+    --focus: #0a6b61;
+    --font-body: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+    --font-mono: ui-monospace, Consolas, 'Courier New', monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f171e;
+      --surface: #17222b;
+      --fg: #e7eef3;
+      --muted: #a7b6c2;
+      --line: #3a4d5b;
+      --accent: #52d3c0;
+      --accent-fg: #052520;
+      --field: #0f171e;
+      --focus: #52d3c0;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f171e;
+    --surface: #17222b;
+    --fg: #e7eef3;
+    --muted: #a7b6c2;
+    --line: #3a4d5b;
+    --accent: #52d3c0;
+    --accent-fg: #052520;
+    --field: #0f171e;
+    --focus: #52d3c0;
+    color-scheme: dark;
+  }
+
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-body);
+    font-size: 1rem;
+    line-height: 1.55;
+    padding-block: 2rem 3rem;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  main {
+    max-width: 42rem;
+    margin-inline: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+    min-width: 0;
+  }
+  h1 { font-size: 2rem; line-height: 1.15; font-weight: 700; margin: 0 0 .5rem; text-wrap: balance; }
+  h2 { font-size: 1.15rem; line-height: 1.3; font-weight: 700; margin: 0 0 .6rem; text-wrap: balance; }
+  p { margin: 0; max-width: 65ch; }
+  .lede { color: var(--muted); font-size: 1.05rem; }
+  section { min-width: 0; }
+
+  .lang-picker { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; }
+  .lang-picker label { font-weight: 600; }
+  select {
+    font-family: var(--font-body);
+    font-size: 1rem;
+    min-height: 2.75rem;
+    padding: .4rem .75rem;
+    color: var(--fg);
+    background: var(--field);
+    border: 2px solid var(--line);
+    border-radius: 6px;
+  }
+
+  label.field-label { display: block; font-weight: 600; margin-bottom: .35rem; }
+  .hint { color: var(--muted); font-size: .92rem; margin-bottom: .5rem; }
+
+  textarea {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    min-width: 0;
+    font-family: var(--font-mono);
+    font-size: .95rem;
+    line-height: 1.5;
+    color: var(--fg);
+    background: var(--field);
+    border: 2px solid var(--line);
+    border-radius: 6px;
+    padding: .75rem;
+    overflow-wrap: anywhere;
+    resize: vertical;
+  }
+  textarea[readonly] { background: var(--surface); }
+
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+  fieldset {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    margin: 0;
+    padding: .5rem 1rem .75rem;
+    min-width: 0;
+  }
+  legend { font-weight: 600; padding: 0 .35rem; }
+  .opt { display: flex; align-items: flex-start; gap: .65rem; padding: .4rem 0; }
+  .opt input { flex: none; width: 1.3rem; height: 1.3rem; margin: .15rem 0 0; accent-color: var(--accent); }
+  .opt label { cursor: pointer; }
+  .options { display: flex; flex-direction: column; gap: 1rem; }
+
+  .buttons { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: .85rem; }
+  button {
+    font-family: var(--font-body);
+    font-size: 1rem;
+    font-weight: 600;
+    min-height: 2.75rem;
+    padding: .5rem 1.25rem;
+    border-radius: 6px;
+    border: 2px solid var(--accent);
+    cursor: pointer;
+  }
+  button.primary { background: var(--accent); color: var(--accent-fg); }
+  button.secondary { background: transparent; color: var(--fg); border-color: var(--line); }
+  button:hover { filter: brightness(1.08); }
+
+  #status {
+    margin-top: .85rem;
+    padding: .75rem 1rem;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--surface);
+    min-height: 1.5rem;
+  }
+
+  dl { margin: 0; display: grid; gap: .25rem; }
+  dt { font-weight: 600; margin-top: .6rem; }
+  dd { margin: 0; }
+  code { font-family: var(--font-mono); font-size: .92rem; overflow-wrap: anywhere; }
+  .ref p + p { margin-top: .6rem; }
+  dd a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
+  dd a:hover { text-decoration-thickness: 2px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="lang-picker">
+    <label for="lang">Language / Idioma</label>
+    <select id="lang">
+      <option value="en" lang="en">English</option>
+      <option value="es" lang="es">Español</option>
+    </select>
+  </div>
+
+  <header>
+    <h1 data-i18n="title">YouTube Link Cleaner</h1>
+    <p class="lede" data-i18n="lede">Paste a YouTube link and the extra tracking parts are removed. The cleaned link is copied for you, ready to paste anywhere.</p>
+  </header>
+
+  <section aria-labelledby="h-paste">
+    <h2 id="h-paste" data-i18n="hPaste">Your link</h2>
+    <label class="field-label" for="in" data-i18n="inLabel">Paste your YouTube link here</label>
+    <p class="hint" id="in-hint" data-i18n="inHint">Use Control+V. You can paste more than one link, separated by spaces or new lines.</p>
+    <textarea id="in" rows="3" autofocus spellcheck="false" autocomplete="off" autocapitalize="off" aria-describedby="in-hint"></textarea>
+  </section>
+
+  <section aria-labelledby="h-options">
+    <h2 id="h-options" data-i18n="hOptions">Options</h2>
+    <div class="options">
+      <fieldset>
+        <legend data-i18n="legStyle">Link style</legend>
+        <div class="opt">
+          <input type="radio" name="style" id="styleShort" value="short" checked>
+          <label for="styleShort" data-i18n="styleShort">Short link, like youtu.be/ID</label>
+        </div>
+        <div class="opt">
+          <input type="radio" name="style" id="styleFull" value="full">
+          <label for="styleFull" data-i18n="styleFull">Full link, like youtube.com/watch?v=ID</label>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend data-i18n="legKeep">What to keep</legend>
+        <div class="opt">
+          <input type="checkbox" id="keepTime" checked>
+          <label for="keepTime" data-i18n="keepTime">Keep the start time if the link has one</label>
+        </div>
+        <div class="opt">
+          <input type="checkbox" id="keepList">
+          <label for="keepList" data-i18n="keepList">Keep the playlist if the link has one</label>
+        </div>
+      </fieldset>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-result">
+    <h2 id="h-result" data-i18n="hResult">Result</h2>
+    <label class="field-label" for="out" data-i18n="outLabel">Cleaned link</label>
+    <textarea id="out" rows="3" readonly spellcheck="false"></textarea>
+    <div class="buttons">
+      <button type="button" class="primary" id="copy" data-i18n="copyBtn">Copy cleaned link</button>
+      <button type="button" class="secondary" id="clear" data-i18n="clearBtn">Clear and start over</button>
+    </div>
+    <p id="status" role="status" aria-live="polite" data-i18n="ready">Ready. Paste a link into the Your link field.</p>
+  </section>
+
+  <section class="ref" aria-labelledby="h-ref">
+    <h2 id="h-ref" data-i18n="hRef">What this does</h2>
+    <p data-i18n="refText">Only the video itself is kept. Parts such as si, feature, pp and utm tags are dropped, because they only record who shared the link and where it was opened. They never change which video plays. The start time is kept by default. The playlist is dropped unless you turn that option on.</p>
+    <dl>
+      <dt data-i18n="before">Before</dt>
+      <dd><a href="https://youtu.be/dQw4w9WgXcQ?si=RXpMSBQEM9jEnOst"><code>https://youtu.be/dQw4w9WgXcQ?si=RXpMSBQEM9jEnOst</code></a></dd>
+      <dt data-i18n="after">After</dt>
+      <dd><a href="https://youtu.be/dQw4w9WgXcQ"><code>https://youtu.be/dQw4w9WgXcQ</code></a></dd>
+    </dl>
+  </section>
+  <noscript><p>This page needs JavaScript to clean links. / Esta página necesita JavaScript para limpiar enlaces.</p></noscript>
+</main>
+
+<script>
+/* ---------- Translations ---------- */
+const I18N = {
+  en: {
+    pageTitle: 'YouTube Link Cleaner',
+    title: 'YouTube Link Cleaner',
+    lede: 'Paste a YouTube link and the extra tracking parts are removed. The cleaned link is copied for you, ready to paste anywhere.',
+    hPaste: 'Your link',
+    inLabel: 'Paste your YouTube link here',
+    inHint: 'Use Control+V. You can paste more than one link, separated by spaces or new lines.',
+    hOptions: 'Options',
+    legStyle: 'Link style',
+    styleShort: 'Short link, like youtu.be/ID',
+    styleFull: 'Full link, like youtube.com/watch?v=ID',
+    legKeep: 'What to keep',
+    keepTime: 'Keep the start time if the link has one',
+    keepList: 'Keep the playlist if the link has one',
+    hResult: 'Result',
+    outLabel: 'Cleaned link',
+    copyBtn: 'Copy cleaned link',
+    clearBtn: 'Clear and start over',
+    ready: 'Ready. Paste a link into the Your link field.',
+    hRef: 'What this does',
+    refText: 'Only the video itself is kept. Parts such as si, feature, pp and utm tags are dropped, because they only record who shared the link and where it was opened. They never change which video plays. The start time is kept by default. The playlist is dropped unless you turn that option on.',
+    before: 'Before',
+    after: 'After',
+    // dynamic messages
+    partOne: 'extra part',
+    partMany: 'extra parts',
+    removedOne: 'Cleaned. Removed {count}: {list}.',
+    nothingRemoved: 'Link is ready. It had nothing extra to remove.',
+    cleanedMany: 'Cleaned {n} links.',
+    removedList: ' Removed: {list}.',
+    couldNot: 'Could not use {first}{more} because {why}.',
+    more: ' and {n} more',
+    errInvalid: 'it is not a valid web address',
+    errNotYT: 'it is not a YouTube link',
+    errNoVideo: 'no video was found in it',
+    copied: ' Copied to the clipboard.',
+    pressCopy: ' Press the Copy cleaned link button to copy it.',
+    already: ' Already copied.',
+    nothingToCopy: 'Nothing to copy yet. Paste a YouTube link into the Your link field first.',
+    copiedOnly: 'Copied to the clipboard.',
+    blocked: 'Copying was blocked here. Move to the Cleaned link field, press Control+A, then Control+C.',
+    cleared: 'Cleared. Paste a new link into the Your link field.',
+    langChanged: 'Language changed to English.'
+  },
+  es: {
+    pageTitle: 'Limpiador de enlaces de YouTube',
+    title: 'Limpiador de enlaces de YouTube',
+    lede: 'Pega un enlace de YouTube y se eliminan las partes de seguimiento adicionales. El enlace limpio se copia por ti, listo para pegarlo donde quieras.',
+    hPaste: 'Tu enlace',
+    inLabel: 'Pega aquí tu enlace de YouTube',
+    inHint: 'Usa Control+V. Puedes pegar más de un enlace, separados por espacios o saltos de línea.',
+    hOptions: 'Opciones',
+    legStyle: 'Estilo del enlace',
+    styleShort: 'Enlace corto, como youtu.be/ID',
+    styleFull: 'Enlace completo, como youtube.com/watch?v=ID',
+    legKeep: 'Qué conservar',
+    keepTime: 'Conservar el tiempo de inicio si el enlace lo tiene',
+    keepList: 'Conservar la lista de reproducción si el enlace la tiene',
+    hResult: 'Resultado',
+    outLabel: 'Enlace limpio',
+    copyBtn: 'Copiar enlace limpio',
+    clearBtn: 'Borrar y empezar de nuevo',
+    ready: 'Listo. Pega un enlace en el campo Tu enlace.',
+    hRef: 'Qué hace esto',
+    refText: 'Solo se conserva el video en sí. Partes como si, feature, pp y las etiquetas utm se eliminan, porque solo registran quién compartió el enlace y dónde se abrió. Nunca cambian qué video se reproduce. El tiempo de inicio se conserva de forma predeterminada. La lista de reproducción se elimina a menos que actives esa opción.',
+    before: 'Antes',
+    after: 'Después',
+    partOne: 'parte extra',
+    partMany: 'partes extra',
+    removedOne: 'Limpio. Se eliminaron {count}: {list}.',
+    nothingRemoved: 'El enlace está listo. No tenía nada extra que eliminar.',
+    cleanedMany: 'Se limpiaron {n} enlaces.',
+    removedList: ' Eliminado: {list}.',
+    couldNot: 'No se pudo usar {first}{more} porque {why}.',
+    more: ' y {n} más',
+    errInvalid: 'no es una dirección web válida',
+    errNotYT: 'no es un enlace de YouTube',
+    errNoVideo: 'no se encontró ningún video en él',
+    copied: ' Copiado al portapapeles.',
+    pressCopy: ' Pulsa el botón Copiar enlace limpio para copiarlo.',
+    already: ' Ya copiado.',
+    nothingToCopy: 'Todavía no hay nada que copiar. Primero pega un enlace de YouTube en el campo Tu enlace.',
+    copiedOnly: 'Copiado al portapapeles.',
+    blocked: 'Aquí se bloqueó el copiado. Ve al campo Enlace limpio, pulsa Control+A y luego Control+C.',
+    cleared: 'Borrado. Pega un nuevo enlace en el campo Tu enlace.',
+    langChanged: 'Idioma cambiado a español.'
+  }
+};
+
+/*CORE-START*/
+const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
+const LIST_ID = /^[A-Za-z0-9_-]{10,}$/;
+
+function parseSeconds(v) {
+  if (!v) return null;
+  v = String(v).trim().toLowerCase();
+  if (/^\d+$/.test(v)) return parseInt(v, 10);
+  const m = v.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/);
+  if (!m || !(m[1] || m[2] || m[3])) return null;
+  return (+m[1] || 0) * 3600 + (+m[2] || 0) * 60 + (+m[3] || 0);
+}
+
+/* Errors are returned as codes: 'invalid', 'notyt', 'novideo' */
+function cleanLink(raw, opts) {
+  let s = raw.trim();
+  if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(s)) s = 'https://' + s;
+  let u;
+  try { u = new URL(s); } catch (e) { return { error: 'invalid' }; }
+  const host = u.hostname.toLowerCase().replace(/^www\./, '');
+  const isYT = host === 'youtube.com' || host.endsWith('.youtube.com') ||
+               host === 'youtube-nocookie.com' || host.endsWith('.youtube-nocookie.com');
+  if (host !== 'youtu.be' && !isYT) return { error: 'notyt' };
+
+  const segs = u.pathname.split('/').filter(Boolean);
+  const p = u.searchParams;
+  let id = null;
+  if (host === 'youtu.be') id = segs[0];
+  else if (p.get('v')) id = p.get('v');
+  else if (['shorts', 'live', 'embed', 'v'].indexOf(segs[0]) !== -1) id = segs[1];
+
+  const list = p.get('list');
+  const listOk = !!list && LIST_ID.test(list);
+  const used = new Set();
+
+  if (!id || !VIDEO_ID.test(id)) {
+    if (listOk && segs[0] === 'playlist') {
+      used.add('list');
+      const gone = [];
+      p.forEach(function (_, k) { if (!used.has(k) && gone.indexOf(k) === -1) gone.push(k); });
+      return { url: 'https://www.youtube.com/playlist?list=' + encodeURIComponent(list), removed: gone };
+    }
+    return { error: 'novideo' };
+  }
+
+  used.add('v');
+  let t = null;
+  const secs = parseSeconds(p.get('t') || p.get('start'));
+  if (opts.keepTime && secs !== null) { t = secs; used.add('t'); used.add('start'); }
+  let keptList = null;
+  if (opts.keepList && listOk) { keptList = list; used.add('list'); }
+
+  const removed = [];
+  p.forEach(function (_, k) { if (!used.has(k) && removed.indexOf(k) === -1) removed.push(k); });
+
+  const extra = [];
+  if (t !== null) extra.push('t=' + t);
+  if (keptList) extra.push('list=' + encodeURIComponent(keptList));
+
+  let url;
+  if (opts.style === 'full') {
+    url = 'https://www.youtube.com/watch?v=' + id + (extra.length ? '&' + extra.join('&') : '');
+  } else {
+    url = 'https://youtu.be/' + id + (extra.length ? '?' + extra.join('&') : '');
+  }
+  return { url: url, removed: removed };
+}
+/*CORE-END*/
+
+(function () {
+  const $ = function (id) { return document.getElementById(id); };
+  const inp = $('in'), out = $('out'), statusEl = $('status');
+  const copyBtn = $('copy'), clearBtn = $('clear');
+  const keepTime = $('keepTime'), keepList = $('keepList');
+  const styleShort = $('styleShort'), styleFull = $('styleFull');
+  const langSel = $('lang');
+  const STORE = 'ytcleaner-options';
+  const LANG_STORE = 'ytcleaner-lang';
+
+  let lang = 'en';
+
+  function t(key, vars) {
+    let s = (I18N[lang] && I18N[lang][key]) || I18N.en[key] || key;
+    if (vars) Object.keys(vars).forEach(function (k) { s = s.split('{' + k + '}').join(vars[k]); });
+    return s;
+  }
+
+  function applyLang(newLang, announce) {
+    lang = I18N[newLang] ? newLang : 'en';
+    document.documentElement.lang = lang;
+    document.title = t('pageTitle');
+    langSel.value = lang;
+    document.querySelectorAll('[data-i18n]').forEach(function (el) {
+      el.textContent = t(el.getAttribute('data-i18n'));
+    });
+    try { localStorage.setItem(LANG_STORE, lang); } catch (e) {}
+    if (announce) setStatus(t('langChanged'));
+  }
+
+  function detectLang() {
+    try {
+      const saved = localStorage.getItem(LANG_STORE);
+      if (saved && I18N[saved]) return saved;
+    } catch (e) {}
+    const nav = (navigator.language || 'en').toLowerCase();
+    return nav.indexOf('es') === 0 ? 'es' : 'en';
+  }
+
+  function loadOptions() {
+    try {
+      const o = JSON.parse(localStorage.getItem(STORE) || 'null');
+      if (!o) return;
+      keepTime.checked = !!o.keepTime;
+      keepList.checked = !!o.keepList;
+      (o.style === 'full' ? styleFull : styleShort).checked = true;
+    } catch (e) {}
+  }
+  function saveOptions() {
+    try { localStorage.setItem(STORE, JSON.stringify(readOpts())); } catch (e) {}
+  }
+  function readOpts() {
+    return { keepTime: keepTime.checked, keepList: keepList.checked, style: styleFull.checked ? 'full' : 'short' };
+  }
+
+  function setStatus(msg) {
+    statusEl.textContent = '';
+    setTimeout(function () { statusEl.textContent = msg; }, 60);
+  }
+
+  function partsText(n) { return n + ' ' + (n === 1 ? t('partOne') : t('partMany')); }
+
+  function errText(code) {
+    return t(code === 'notyt' ? 'errNotYT' : code === 'novideo' ? 'errNoVideo' : 'errInvalid');
+  }
+
+  function run() {
+    const tokens = inp.value.split(/\s+/).filter(Boolean);
+    if (!tokens.length) {
+      out.value = '';
+      return { good: [], msg: t('ready') };
+    }
+    const good = [], bad = [], removedAll = [];
+    const opts = readOpts();
+    tokens.forEach(function (tk) {
+      const r = cleanLink(tk, opts);
+      if (r.url) {
+        good.push(r.url);
+        r.removed.forEach(function (k) { if (removedAll.indexOf(k) === -1) removedAll.push(k); });
+      } else {
+        bad.push({ tk: tk, why: r.error });
+      }
+    });
+    out.value = good.join('\n');
+
+    let msg = '';
+    if (good.length === 1) {
+      msg = removedAll.length
+        ? t('removedOne', { count: partsText(removedAll.length), list: removedAll.join(', ') })
+        : t('nothingRemoved');
+    } else if (good.length > 1) {
+      msg = t('cleanedMany', { n: good.length }) +
+        (removedAll.length ? t('removedList', { list: removedAll.join(', ') }) : '');
+    }
+    if (bad.length) {
+      const first = bad[0].tk.length > 40 ? bad[0].tk.slice(0, 40) + '...' : bad[0].tk;
+      const more = bad.length > 1 ? t('more', { n: bad.length - 1 }) : '';
+      msg += (msg ? ' ' : '') + t('couldNot', { first: first, more: more, why: errText(bad[0].why) });
+    }
+    return { good: good, msg: msg };
+  }
+
+  function legacyCopy(text) {
+    const prev = document.activeElement;
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '0';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+    if (prev && prev.focus) prev.focus();
+    return ok;
+  }
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (e) {}
+    return legacyCopy(text);
+  }
+
+  let lastCopied = '', seq = 0;
+  async function update(allowCopy) {
+    const my = ++seq;
+    const r = run();
+    let msg = r.msg;
+    if (r.good.length) {
+      const text = out.value;
+      if (allowCopy && text !== lastCopied) {
+        const ok = await copyText(text);
+        if (my !== seq) return;
+        if (ok) { lastCopied = text; msg += t('copied'); }
+        else { msg += t('pressCopy'); }
+      } else if (allowCopy) {
+        msg += t('already');
+      } else {
+        msg += t('pressCopy');
+      }
+    }
+    setStatus(msg);
+  }
+
+  let pasteFlag = false, timer = null;
+  inp.addEventListener('paste', function () {
+    pasteFlag = true;
+    setTimeout(function () { pasteFlag = false; update(true); }, 0);
+  });
+  inp.addEventListener('input', function () {
+    if (pasteFlag) return;
+    clearTimeout(timer);
+    timer = setTimeout(function () { update(true); }, 700);
+  });
+  [keepTime, keepList, styleShort, styleFull].forEach(function (el) {
+    el.addEventListener('change', function () {
+      saveOptions();
+      lastCopied = '';
+      update(true);
+    });
+  });
+
+  langSel.addEventListener('change', function () {
+    applyLang(langSel.value, true);
+  });
+
+  copyBtn.addEventListener('click', async function () {
+    if (!out.value) { setStatus(t('nothingToCopy')); return; }
+    const ok = await copyText(out.value);
+    if (ok) { lastCopied = out.value; setStatus(t('copiedOnly')); }
+    else { setStatus(t('blocked')); }
+  });
+  clearBtn.addEventListener('click', function () {
+    inp.value = '';
+    out.value = '';
+    lastCopied = '';
+    setStatus(t('cleared'));
+    inp.focus();
+  });
+
+  applyLang(detectLang(), false);
+  loadOptions();
+  try { inp.focus(); } catch (e) {}
+})();
+</script>
+</body>
+</html>
